@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+:root { color-scheme: dark; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: #090c10; color: #f5f6f8; font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+* { box-sizing: border-box; }
+button, input, select { font: inherit; }
+button, a, select { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid #49e6ac; outline-offset: 3px;
+}
+::selection { background: #49e6ac; color: #10151b; }
+
+/* Touch navigation on phones, prevent viewport overflow and iOS auto-zoom. */
+html, body { min-width: 0; overflow-x: clip; }
+input, textarea, select { font-size: 16px; }
+@media (min-width: 640px) { input, textarea, select { font-size: inherit; } }
