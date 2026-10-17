@@ -52,7 +52,7 @@ const existingData = await graphql(`query ExistingWebhooks {
   webhookSubscriptions(first: 250) { nodes { id topic uri } }
 }`);
 const existing = existingData.webhookSubscriptions.nodes;
-const mutation = `mutation RegisterWebhook($topic: WebhookSubscriptionTopic!, $uri: URL!) {
+const mutation = `mutation RegisterWebhook($topic: WebhookSubscriptionTopic!, $uri: String!) {
   webhookSubscriptionCreate(topic: $topic, webhookSubscription: { uri: $uri, format: JSON }) {
     webhookSubscription { id topic uri }
     userErrors { field message }
