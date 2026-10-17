@@ -9,11 +9,10 @@ const limiter = hasRedis ? new Ratelimit({
   prefix: "footmb:login:v1",
 }) : null;
 
-export async function canAttemptLogin(): Promise<boolean> {
+export async function canAttemptLogin(identifier = "unknown"): Promise<boolean> {
   if (!limiter) return process.env.NODE_ENV !== "production";
   try {
-    // Limit all attempted user names globally for this single-admin app.
-    const key = createHash("sha256").update("footmb-admin-login").digest("hex");
+    const key = createHash("sha256").update(identifier.trim().toLowerCase()).digest("hex");
     const result = await limiter.limit(key);
     return result.success && result.reason !== "timeout";
   } catch {

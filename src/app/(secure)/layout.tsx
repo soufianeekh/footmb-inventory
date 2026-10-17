@@ -5,9 +5,15 @@ export const instant = false;
 
 export default async function SecureLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
-  const allowed = process.env.FOOTMB_ADMIN_EMAIL?.trim().toLowerCase();
-  if (!allowed || session?.user?.email?.toLowerCase() !== allowed) {
+  if (!session?.user?.email) {
     redirect("/login");
   }
-  return <AppShell>{children}</AppShell>;
+  return (
+    <AppShell user={{
+      id: session.user.id,
+      name: session.user.name || session.user.email,
+      email: session.user.email,
+      role: session.user.role,
+    }}>{children}</AppShell>
+  );
 }

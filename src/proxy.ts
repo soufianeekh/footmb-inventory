@@ -4,9 +4,13 @@ import { NextResponse } from "next/server";
 export const proxy = auth((request) => {
   const path = request.nextUrl.pathname;
   // Auth.js routes handle their own CSRF and credential checks.
-  if (path === "/login" || path.startsWith("/api/auth/")) return NextResponse.next();
-  const allowed = process.env.FOOTMB_ADMIN_EMAIL?.trim().toLowerCase();
-  const authorized = Boolean(allowed && request.auth?.user?.email?.toLowerCase() === allowed);
+  if (
+    path === "/login" ||
+    path.startsWith("/api/auth/") ||
+    path === "/api/webhooks/shopify" ||
+    path === "/api/internal/inventory/process"
+  ) return NextResponse.next();
+  const authorized = Boolean(request.auth?.user?.email);
   if (authorized) return NextResponse.next();
   if (path.startsWith("/api/")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401,

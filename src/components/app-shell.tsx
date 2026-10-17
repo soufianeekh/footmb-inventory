@@ -1,112 +1,255 @@
 "use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { InventoryProvider, useInventory } from "@/components/inventory-provider";
-import { Icon, type IconName } from "@/components/icons";
-import { fmt } from "@/lib/inventory";
+import Image from "next/image";
+import footmbLogo from "../../public/footmb-logo.png";
+import brandReference from "../../public/brand-reference.png";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { signOut } from "next-auth/react";
-
+import {
+  InventoryProvider,
+  useInventory,
+} from "@/components/inventory-provider";
+import { Icon, type IconName } from "@/components/icons";
+import {
+  useSidebar,
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, LogOut } from "lucide-react";
+import { UserProvider, type CurrentUser } from "@/components/user-context";
 const links: { href: string; label: string; icon: IconName }[] = [
-  { href: "/", label: "Accueil", icon: "home" },
+  { href: "/", label: "Tableau de bord", icon: "home" },
   { href: "/inventory", label: "Inventaire", icon: "box" },
-  { href: "/stats", label: "Stats", icon: "chart" },
+  { href: "/pos", label: "POS", icon: "cart" },
+  { href: "/stats", label: "Statistiques", icon: "chart" },
   { href: "/settings", label: "Réglages", icon: "settings" },
 ];
-
-function Navigation({ compact }: { compact?: boolean }) {
-  const pathname = usePathname();
-  return links.map((link) => {
-    const active = link.href === "/" ? pathname === "/" :
-      pathname === link.href || pathname.startsWith(`${link.href}/`);
-    return <Link key={link.href} href={link.href}
-      aria-current={active ? "page" : undefined}
-      className={compact ?
-        `flex h-[58px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold transition-colors ${active ? "text-[#49e6ac]" : "text-[#8b96a3]"}`
-        : `flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-semibold transition-colors ${active ? "border border-[#49e6ac]/15 bg-[#49e6ac]/10 text-[#49e6ac]" : "text-[#a1aab4] hover:bg-white/[0.05] hover:text-white"}`
-      }>
-      <Icon name={link.icon} size={compact ? 21 : 19}/>
-      <span>{link.label}</span>
-    </Link>;
-  });
+function NavigationLink(props: React.ComponentProps<typeof Link>) {
+  const { setOpenMobile } = useSidebar();
+  return <Link {...props} onClick={() => setOpenMobile(false)} />;
 }
-
+function Brand() {
+  return (
+    <Link
+      href="/"
+      className="flex items-center gap-2.5"
+      aria-label="FOOTMB Inventory, accueil"
+    >
+      <span className="size-14 overflow-hidden rounded-lg">
+        <Image
+          src={footmbLogo}
+          width={56}
+          height={56}
+          alt=""
+          className="size-full object-contain"
+        />
+      </span>
+      <span className="font-black italic tracking-tight text-[22px]">
+        FOOT<span className="text-[#ff9d0a]">MB</span>
+        <span className="block text-[9px] tracking-[.35em] not-italic">
+          INVENTORY
+        </span>
+      </span>
+    </Link>
+  );
+}
 function Chrome({ children }: { children: React.ReactNode }) {
-  const { syncing, ready, error, refresh, progress, syncedAt } = useInventory();
-  return <div className="min-h-dvh bg-[#090c10] text-[#f5f6f8]">
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[228px] flex-col border-r border-white/[0.07] bg-[#10151b] px-3 py-5 lg:flex">
-      <Link href="/" className="mb-9 flex items-center gap-3 px-3">
-        <span className="flex size-11 items-center justify-center rounded-[14px] bg-white text-[23px] font-black text-[#11151b]">F</span>
-        <span><span className="block text-lg font-black tracking-tight">FOOTMB</span><span className="block text-[11px] text-[#8995a2]">Inventory Hub</span></span>
-      </Link>
-      <div className="mb-3 px-4 text-[10px] font-bold uppercase tracking-[.17em] text-[#687582]">Workspace</div>
-      <nav aria-label="Navigation principale" className="space-y-1">{<Navigation/>}</nav>
-      <div className="mt-auto rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#d8e0e4]"><Icon name="shield" size={16}/> Lecture seule</div>
-        <p className="mt-2 text-[11px] leading-5 text-[#8b96a3]">Les quantités viennent directement de Shopify.</p>
-      </div>
-      <button type="button" onClick={() => void signOut({ redirectTo: "/login" })}
-        className="mt-3 min-h-11 w-full rounded-xl border border-white/10 px-4 text-left text-sm font-semibold text-[#bdcad4] hover:bg-white/5">
-        Déconnexion
-      </button>
-    </aside>
-
-    <div className="min-w-0 lg:pl-[228px]">
-      <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#10151b]/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-[66px] max-w-[1430px] items-center justify-between gap-2 px-4 sm:px-6 lg:h-[76px] lg:px-9">
-          <Link href="/" className="flex min-w-0 items-center gap-2.5 lg:hidden">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-xl font-black text-[#10151b]">F</span>
-            <span className="min-w-0">
-              <span className="block text-[15px] font-black leading-5 tracking-tight">FOOTMB</span>
-              <span className="block text-[10px] text-[#8b96a3]">Inventory Hub</span>
-            </span>
-          </Link>
-          <div className="hidden lg:block">
-            <p className="text-sm font-semibold">Gestion du stock</p>
-            <p className="mt-0.5 text-xs text-[#798693]">FOOTMB · Shopify</p>
+  const pathname = usePathname(),
+    router = useRouter();
+  const [search, setSearch] = useState("");
+  const { ready, syncing, error, refresh, progress } = useInventory();
+  return (
+    <SidebarProvider
+      style={{ "--sidebar-width": "254px" } as React.CSSProperties}
+    >
+      <Sidebar className="border-r">
+        <SidebarHeader className="px-6 py-7">
+          <Brand />
+        </SidebarHeader>
+        <SidebarContent className="px-4 pt-5">
+          <SidebarMenu className="gap-2">
+            {links.map((l) => (
+              <SidebarMenuItem key={l.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={
+                    l.href === "/"
+                      ? pathname === "/"
+                      : pathname.startsWith(l.href)
+                  }
+                  className="h-12 rounded-lg px-4 text-[14px] data-[active=true]:border-l-4 data-[active=true]:border-[#ff9d0a] data-[active=true]:bg-[#fff5e7] data-[active=true]:font-semibold data-[active=true]:text-[#111244]"
+                >
+                  <NavigationLink
+                    href={l.href}
+                    aria-current={
+                      (
+                        l.href === "/"
+                          ? pathname === "/"
+                          : pathname.startsWith(l.href)
+                      )
+                        ? "page"
+                        : undefined
+                    }
+                  >
+                    <Icon name={l.icon} size={21} />
+                    <span>{l.label}</span>
+                  </NavigationLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter className="p-5">
+          <div
+            role="img"
+            aria-label="FOOTMB · Équipez votre passion"
+            className="aspect-square w-full rounded-lg bg-[#141331]"
+            style={{
+              backgroundImage: "url(" + brandReference.src + ")",
+              backgroundSize: "629.565% auto",
+              backgroundPosition: "3.038% 93.575%",
+            }}
+          />
+          <p className="pt-3 text-center text-[10px] text-muted-foreground">
+            Inventaire Shopify · Accès contrôlé
+          </p>
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset className="min-w-0 bg-background">
+        <header className="sticky top-0 z-20 flex min-h-[76px] items-center gap-3 border-b bg-white/95 px-4 backdrop-blur lg:px-8">
+          <SidebarTrigger
+            className="md:hidden"
+            aria-label="Ouvrir la navigation"
+          />
+          <div className="md:hidden font-black">
+            FOOT<span className="text-[#ff9d0a]">MB</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span role="status" className={`inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-[10px] font-bold sm:px-3 sm:text-xs ${
-              error ? "border-amber-500/20 bg-amber-500/10 text-amber-300" :
-              syncing ? "border-blue-400/20 bg-blue-400/10 text-blue-200" :
-              ready ? "border-[#49e6ac]/20 bg-[#49e6ac]/10 text-[#49e6ac]" :
-              "border-white/10 bg-white/5 text-[#a2afbd]"
-            }`}>
-              <span className={`size-1.5 rounded-full ${error ? "bg-amber-400" : syncing ? "animate-pulse bg-blue-400" : ready ? "bg-[#49e6ac]" : "bg-slate-500"}`}/>
-              {error ? "Erreur sync" : syncing ? "Chargement" : ready ? "Synchronisé" : "En attente"}
-            </span>
-            <button type="button" onClick={refresh} disabled={syncing}
-              aria-label="Actualiser depuis Shopify" title="Actualiser depuis Shopify"
-              className="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#f5f6f8] transition hover:bg-white/10 active:scale-95 disabled:opacity-40">
-              <Icon name="refresh" size={20} className={syncing ? "animate-spin" : ""}/>
-            </button>
+          <form
+            className="relative hidden max-w-xl flex-1 sm:block"
+            onSubmit={(e) => {
+              e.preventDefault();
+              router.push(`/inventory?q=${encodeURIComponent(search)}`);
+            }}
+          >
+            <Icon
+              name="search"
+              size={18}
+              className="absolute left-3 top-3 text-muted-foreground"
+            />
+            <Input
+              aria-label="Recherche globale"
+              placeholder="Rechercher un produit, une référence…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-10 bg-[#f7f8fc] pl-10 shadow-none"
+            />
+          </form>
+          <div className="ml-auto flex items-center gap-2 sm:gap-4">
+            <Badge
+              variant="secondary"
+              className={`gap-1.5 px-2.5 py-1.5 text-[10px] ${error ? "bg-rose-50 text-rose-600" : ready && !syncing ? "bg-emerald-50 text-emerald-700" : ""}`}
+            >
+              <span className="size-1.5 rounded-full bg-current" />
+              {error
+                ? "Erreur sync"
+                : syncing
+                  ? "Chargement"
+                  : ready
+                    ? "Synchronisé"
+                    : "En attente"}
+            </Badge>
+            <Button
+              size="icon"
+              variant="ghost"
+              disabled={syncing}
+              onClick={refresh}
+              aria-label="Actualiser Shopify"
+            >
+              <Icon
+                name="refresh"
+                size={18}
+                className={syncing ? "animate-spin" : ""}
+              />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="hidden gap-2 sm:flex">
+                  <Icon name="store" size={18} />
+                  FOOTMB
+                  <ChevronDown size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">Informations de la boutique</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => void signOut({ redirectTo: "/login" })}
+                >
+                  <LogOut />
+                  Déconnexion
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+        <div
+          id="main-content"
+          className="w-full min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-7"
+        >
+          <div className="mx-auto max-w-[1440px]">
+            {error && (
+              <div
+                role="alert"
+                className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"
+              >
+                <span>La synchronisation a échoué : {error}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refresh}
+                  disabled={syncing}
+                >
+                  Réessayer
+                </Button>
+              </div>
+            )}
+            {syncing && (
+              <p role="status" className="mb-4 text-xs text-muted-foreground">
+                Synchronisation Shopify · {progress} variantes chargées
+              </p>
+            )}
+            {children}
           </div>
         </div>
-      </header>
-
-      <div aria-live="polite" className="mx-auto max-w-[1430px]">
-        {syncing && <div className="mx-4 mt-4 rounded-xl border border-blue-400/20 bg-blue-400/[0.07] px-3.5 py-3 text-xs text-blue-200 sm:mx-6 lg:mx-9">
-          Synchronisation Shopify en cours · {fmt(progress)} variantes chargées. {ready ? "Les anciennes données restent visibles." : "Préparation des données…"}
-        </div>}
-        {error && <div role="alert" className="mx-4 mt-4 rounded-xl border border-amber-400/20 bg-amber-400/[0.07] px-3.5 py-3 text-xs leading-5 text-amber-200 sm:mx-6 lg:mx-9">
-          La synchronisation a échoué : {error}. {ready ? "Les dernières données reçues restent affichées." : "Vérifiez votre API Shopify et réessayez."}
-        </div>}
-        {ready && !syncing && syncedAt && <span className="sr-only">Dernière synchronisation à {syncedAt.toLocaleTimeString("fr-FR")}</span>}
-      </div>
-
-      <main className="mx-auto w-full min-w-0 max-w-[1430px] px-4 pb-[calc(105px+env(safe-area-inset-bottom))] pt-6 sm:px-6 lg:px-9 lg:pb-16 lg:pt-9">
-        {children}
-      </main>
-    </div>
-
-    <nav aria-label="Navigation mobile" className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.09] bg-[#11171d]/98 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_36px_rgba(0,0,0,.24)] backdrop-blur-xl lg:hidden">
-      <div className="mx-auto flex h-[68px] max-w-[560px] items-center justify-between gap-1">
-        <Navigation compact/>
-      </div>
-    </nav>
-  </div>;
+      </SidebarInset>
+    </SidebarProvider>
+  );
 }
-
-export function AppShell({ children }: { children: React.ReactNode }) {
-  return <InventoryProvider><Chrome>{children}</Chrome></InventoryProvider>;
+export function AppShell({ children, user }: { children: React.ReactNode; user: CurrentUser }) {
+  return (
+    <UserProvider user={user}>
+      <InventoryProvider>
+        <Chrome>{children}</Chrome>
+      </InventoryProvider>
+    </UserProvider>
+  );
 }

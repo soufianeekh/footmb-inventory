@@ -9,15 +9,34 @@ export type InventoryVariant = {
   model: string;
   image: string | null;
   size: string;
+  sku?: string | null;
+  barcode?: string | null;
   tracked: boolean;
   locationsComplete: boolean;
   stock: Record<LocationKey, number>;
+  inventoryItemId?: string;
+  locationIds?: Partial<Record<LocationKey, string>>;
+  sourceUpdatedAt?: string;
 };
 
 export type ShopifyPage = {
   success: boolean;
   variants: InventoryVariant[];
   pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  revision?: number;
+  initializing?: boolean;
+  meta?: {
+    revision: number;
+    verifiedAt: string;
+    reconciledAt: string;
+    publishedAt: string;
+  };
+  sync?: {
+    phase: "empty" | "syncing" | "ready" | "degraded" | "error";
+    processedVariants: number;
+    message: string | null;
+    error: string | null;
+  };
   error?: string;
 };
 
