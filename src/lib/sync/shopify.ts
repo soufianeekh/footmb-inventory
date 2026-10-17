@@ -288,7 +288,7 @@ export async function fetchInventoryItemVariant(
 }
 
 const UPDATED_INVENTORY_ITEMS_QUERY = `query UpdatedInventoryItems($cursor: String, $query: String!) {
-  inventoryItems(first: 100, after: $cursor, query: $query, sortKey: UPDATED_AT) {
+  inventoryItems(first: 100, after: $cursor, query: $query) {
     pageInfo { hasNextPage endCursor }
     nodes {
       id tracked updatedAt

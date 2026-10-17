@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { adjustInventoryQuantities, mapShopifyVariant, resetShopifyTokenForTests } from "./shopify";
+import {
+  adjustInventoryQuantities,
+  fetchUpdatedInventoryItemPage,
+  mapShopifyVariant,
+  resetShopifyTokenForTests,
+} from "./shopify";
 import type { InventoryLocation } from "./types";
 
 const locations: InventoryLocation[] = [
@@ -73,5 +78,37 @@ describe("Shopify inventory mapping", () => {
     const payload = JSON.parse(String(request.body));
     expect(payload.query).toContain("@idempotent(key: $idempotencyKey)");
     expect(payload.variables.input.changes[0]).toMatchObject({ delta: -2, changeFromQuantity: 7, inventoryItemId: "item-1", locationId: "loc-1" });
+  });
+
+  it("uses the supported inventoryItems arguments for incremental sync", async () => {
+    process.env.SHOPIFY_SHOP = "footmb-test.myshopify.com";
+    process.env.SHOPIFY_CLIENT_ID = "client";
+    process.env.SHOPIFY_CLIENT_SECRET = "secret";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "token", expires_in: 3600 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: {
+          inventoryItems: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchUpdatedInventoryItemPage(
+      null,
+      locations,
+      "2026-10-17T12:00:00.000Z",
+      "2026-10-17T12:05:00.000Z",
+    );
+
+    const request = fetchMock.mock.calls[1][1] as RequestInit;
+    const payload = JSON.parse(String(request.body));
+    expect(payload.query).toContain("inventoryItems(first: 100, after: $cursor, query: $query)");
+    expect(payload.query).not.toContain("sortKey");
+    expect(payload.variables.query).toBe(
+      "updated_at:>='2026-10-17T12:00:00.000Z' updated_at:<='2026-10-17T12:05:00.000Z'",
+    );
   });
 });
