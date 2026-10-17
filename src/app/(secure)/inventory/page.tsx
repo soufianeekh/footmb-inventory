@@ -267,9 +267,9 @@ function InventoryView({
   function exportCsv() {
     const rows = table.getSortedRowModel().rows;
     const csv = [
-      "Produit;Casablanca;Tanger;Stock Casa;Total",
+      "Produit;Stock Casa;Casablanca;Tanger;Total",
       ...rows.map(({ original: p }) =>
-        [p.model, p.units.casa, p.units.tanger, p.units.stockCasa, p.total]
+        [p.model, p.units.stockCasa, p.units.casa, p.units.tanger, p.total]
           .map((v) => '"' + String(v).replaceAll('"', '""') + '"')
           .join(";"),
       ),

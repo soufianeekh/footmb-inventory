@@ -21,7 +21,7 @@ export default function PosPage() {
   const [query, setQuery] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState("");
-  const [location, setLocation] = useState<LocationKey>("casa");
+  const [location, setLocation] = useState<LocationKey>("stockCasa");
   const [quantity, setQuantity] = useState(1);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [source, setSource] = useState<"store" | "delivery">("store");
@@ -57,7 +57,7 @@ export default function PosPage() {
     const first = variants.find((variant) => variant.productId === productId && variant.tracked);
     setSelectedProductId(productId);
     setSelectedVariantId(first?.variantId || "");
-    setLocation("casa");
+    setLocation("stockCasa");
     setQuantity(1);
     setMessage(null);
   };

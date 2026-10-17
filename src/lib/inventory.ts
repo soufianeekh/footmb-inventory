@@ -64,9 +64,9 @@ type Draft = {
 };
 
 export const LOCATIONS: { key: LocationKey; label: string; short: string }[] = [
+  { key: "stockCasa", label: "Stock Casa", short: "Stock Casa" },
   { key: "casa", label: "Casablanca", short: "Casa" },
   { key: "tanger", label: "Tanger", short: "Tanger" },
-  { key: "stockCasa", label: "Stock Casa", short: "Stock Casa" },
 ];
 export const LOCATION_KEYS: LocationKey[] = ["casa", "tanger", "stockCasa"];
 
