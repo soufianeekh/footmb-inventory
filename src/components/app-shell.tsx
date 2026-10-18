@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, LogOut } from "lucide-react";
 import { UserProvider, type CurrentUser } from "@/components/user-context";
+import { FootmbAssistant } from "@/components/footmb-assistant";
 const links: { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "Tableau de bord", icon: "home" },
   { href: "/inventory", label: "Inventaire", icon: "box" },
@@ -249,6 +250,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     <UserProvider user={user}>
       <InventoryProvider>
         <Chrome>{children}</Chrome>
+        <FootmbAssistant />
       </InventoryProvider>
     </UserProvider>
   );
