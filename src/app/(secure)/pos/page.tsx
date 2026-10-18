@@ -50,22 +50,38 @@ export default function PosPage() {
     });
   }, [products, variants, query]);
   const selectedVariants = variants.filter((variant) => variant.productId === selectedProductId && variant.tracked);
-  const selectedVariant = selectedVariants.find((variant) => variant.variantId === selectedVariantId) || selectedVariants[0];
-  const available = selectedVariant?.stock[location] || 0;
+  const availableLocations = LOCATIONS.filter((item) =>
+    selectedVariants.some((variant) => variant.stock[item.key] > 0),
+  );
+  const activeLocation = availableLocations.some((item) => item.key === location)
+    ? location
+    : availableLocations[0]?.key || location;
+  const availableVariants = selectedVariants.filter(
+    (variant) => variant.stock[activeLocation] > 0,
+  );
+  const selectedVariant = availableVariants.find((variant) => variant.variantId === selectedVariantId) || availableVariants[0];
+  const available = selectedVariant?.stock[activeLocation] || 0;
 
   const openProduct = (productId: string) => {
-    const first = variants.find((variant) => variant.productId === productId && variant.tracked);
+    const productVariants = variants.filter(
+      (variant) => variant.productId === productId && variant.tracked,
+    );
+    const firstLocation =
+      LOCATIONS.find((item) =>
+        productVariants.some((variant) => variant.stock[item.key] > 0),
+      )?.key || "stockCasa";
+    const first = productVariants.find((variant) => variant.stock[firstLocation] > 0);
     setSelectedProductId(productId);
     setSelectedVariantId(first?.variantId || "");
-    setLocation("stockCasa");
+    setLocation(firstLocation);
     setQuantity(1);
     setMessage(null);
   };
   const addLine = () => {
     if (!selectedVariant || quantity < 1 || quantity > available) return;
     setCart((current) => {
-      const index = current.findIndex((line) => line.variant.variantId === selectedVariant.variantId && line.location === location);
-      if (index < 0) return [...current, { variant: selectedVariant, location, quantity }];
+      const index = current.findIndex((line) => line.variant.variantId === selectedVariant.variantId && line.location === activeLocation);
+      if (index < 0) return [...current, { variant: selectedVariant, location: activeLocation, quantity }];
       const next = [...current];
       next[index] = { ...next[index], quantity: Math.min(available, next[index].quantity + quantity) };
       return next;
@@ -162,14 +178,48 @@ export default function PosPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Ajouter à la vente</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <label className="text-xs font-medium">Taille / variante
-              <select value={selectedVariant?.variantId || ""} onChange={(event) => { setSelectedVariantId(event.target.value); setQuantity(1); }} className="mt-2 h-11 w-full rounded-md border bg-white px-3 text-sm">
-                {selectedVariants.map((variant) => <option key={variant.variantId} value={variant.variantId}>{variant.size}</option>)}
+            <label className="text-xs font-medium">Emplacement
+              <select
+                value={availableLocations.length ? activeLocation : ""}
+                disabled={!availableLocations.length}
+                onChange={(event) => {
+                  const nextLocation = event.target.value as LocationKey;
+                  const firstAvailable = selectedVariants.find(
+                    (variant) => variant.stock[nextLocation] > 0,
+                  );
+                  setLocation(nextLocation);
+                  setSelectedVariantId(firstAvailable?.variantId || "");
+                  setQuantity(1);
+                }}
+                className="mt-2 h-11 w-full rounded-md border bg-white px-3 text-sm"
+              >
+                {availableLocations.length ? (
+                  availableLocations.map((item) => (
+                    <option key={item.key} value={item.key}>
+                      {item.label}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">Aucun stock disponible</option>
+                )}
               </select>
             </label>
-            <label className="text-xs font-medium">Emplacement
-              <select value={location} onChange={(event) => { setLocation(event.target.value as LocationKey); setQuantity(1); }} className="mt-2 h-11 w-full rounded-md border bg-white px-3 text-sm">
-                {LOCATIONS.map((item) => <option key={item.key} value={item.key}>{item.label} · {selectedVariant?.stock[item.key] || 0} disponible(s)</option>)}
+            <label className="text-xs font-medium">Taille / variante
+              <select
+                value={selectedVariant?.variantId || ""}
+                disabled={!availableVariants.length}
+                onChange={(event) => { setSelectedVariantId(event.target.value); setQuantity(1); }}
+                className="mt-2 h-11 w-full rounded-md border bg-white px-3 text-sm"
+              >
+                {availableVariants.length ? (
+                  availableVariants.map((variant) => (
+                    <option key={variant.variantId} value={variant.variantId}>
+                      {variant.size} · {variant.stock[activeLocation]} disponible(s)
+                    </option>
+                  ))
+                ) : (
+                  <option value="">Aucune taille disponible</option>
+                )}
               </select>
             </label>
             <label className="text-xs font-medium">Quantité
