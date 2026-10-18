@@ -1,8 +1,8 @@
-import { auth } from "@/auth";
+import { edgeAuth } from "@/auth-edge";
 import { NextResponse } from "next/server";
 import { hasPermission, type Permission } from "@/lib/permissions";
 
-export const proxy = auth((request) => {
+export const proxy = edgeAuth((request) => {
   const path = request.nextUrl.pathname;
   // Auth.js routes handle their own CSRF and credential checks.
   if (
