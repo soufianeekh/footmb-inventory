@@ -1,13 +1,12 @@
 "use server";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
+import { safeCallbackPath } from "@/lib/auth-session";
 
 export async function loginAction(_state: string | null, form: FormData): Promise<string | null> {
   const email = String(form.get("email") ?? "").trim();
   const password = String(form.get("password") ?? "");
-  const target = String(form.get("callbackUrl") ?? "/");
-  // Only allow an internal relative path for redirects.
-  const redirectTo = /^\/(?:inventory(?:\/[A-Za-z0-9_-]+)?|pos|stats|activity|settings|users)?$/.test(target) ? target : "/";
+  const redirectTo = safeCallbackPath(String(form.get("callbackUrl") ?? "/"));
   try {
     await signIn("credentials", { email, password, redirectTo });
     return null;

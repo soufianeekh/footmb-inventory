@@ -4,7 +4,10 @@ import { getSnapshotMeta, getSyncStatus } from "@/lib/sync/store";
 
 export async function GET(request: NextRequest) {
   if (!(await isAuthenticatedSession())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Session expired", code: "AUTH_SESSION_EXPIRED" },
+      { status: 401, headers: { "Cache-Control": "no-store" } },
+    );
   }
   const [snapshot, status] = await Promise.all([getSnapshotMeta(), getSyncStatus()]);
   const requestedRevision = Number(request.nextUrl.searchParams.get("since") || 0);

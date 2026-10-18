@@ -1,6 +1,7 @@
 import { edgeAuth } from "@/auth-edge";
 import { NextResponse } from "next/server";
 import { hasPermission, type Permission } from "@/lib/permissions";
+import { safeCallbackPath } from "@/lib/auth-session";
 
 export const proxy = edgeAuth((request) => {
   const path = request.nextUrl.pathname;
@@ -28,12 +29,13 @@ export const proxy = edgeAuth((request) => {
     return NextResponse.next();
   }
   if (path.startsWith("/api/")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401,
+    return NextResponse.json({ error: "Session expired", code: "AUTH_SESSION_EXPIRED" }, { status: 401,
       headers: { "Cache-Control": "no-store" } });
   }
   const url = new URL("/login", request.nextUrl);
   // Do not reflect untrusted external return destinations.
-  if (path !== "/") url.searchParams.set("callbackUrl", path);
+  const intended = safeCallbackPath(`${path}${request.nextUrl.search}`);
+  if (intended !== "/") url.searchParams.set("callbackUrl", intended);
   return NextResponse.redirect(url);
 });
 

@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { LoginForm } from "./login-form";
 import Image from "next/image";
 import logo from "../../../public/footmb-logo.png";
+import { safeCallbackPath } from "@/lib/auth-session";
 export const instant = false;
 
 export default async function LoginPage({
@@ -12,10 +13,10 @@ export default async function LoginPage({
   searchParams: Promise<{ callbackUrl?: string }>;
 }) {
   await connection();
-  const session = await auth();
-  if (session?.user?.email) redirect("/");
   const params = await searchParams;
-  const callbackUrl = params.callbackUrl || "/";
+  const callbackUrl = safeCallbackPath(params.callbackUrl);
+  const session = await auth();
+  if (session?.user?.email) redirect(callbackUrl);
   return (
     <main className="flex min-h-dvh items-center justify-center bg-[#f5f7fb] px-4 py-12 text-[#111244]">
       <div className="w-full max-w-[430px]">
