@@ -12,6 +12,8 @@ export const proxy = edgeAuth((request) => {
     path.startsWith("/api/auth/") ||
     path === "/api/invitations/accept" ||
     path === "/api/webhooks/shopify" ||
+    path === "/api/webhooks/shopify/orders" ||
+    path.startsWith("/api/webhooks/shopify/orders/") ||
     path === "/api/internal/inventory/process"
   ) return NextResponse.next();
   const authorized = Boolean(request.auth?.user?.email);
