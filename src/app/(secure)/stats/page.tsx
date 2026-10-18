@@ -139,7 +139,7 @@ export default function StatsPage() {
           </div>
           <Surface className="mt-4 p-4 sm:p-5">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-              <SectionTitle icon="chart" title="Ventes par source" detail="Commandes Shopify et sorties enregistrées dans FOOTMB POS, sans double comptage." />
+              <SectionTitle icon="chart" title="Sorties et commandes par source" detail="Les commandes Site et Shopify POS viennent de Shopify. Livraison et Magasin comptent les sorties FOOTMB POS, sans preuve de paiement." />
               <select value={salesDays} onChange={(event) => { setSalesError(null); setSalesStats(null); setSalesDays(Number(event.target.value)); }} className="h-9 rounded-md border bg-white px-3 text-xs">
                 <option value={7}>7 derniers jours</option><option value={30}>30 derniers jours</option><option value={60}>60 derniers jours</option>
               </select>
@@ -147,10 +147,10 @@ export default function StatsPage() {
             {salesError ? <p className="text-sm text-rose-600">{salesError}</p> : !salesStats ? <p className="text-sm text-muted-foreground">Chargement des ventes…</p> : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {([
-                  ["delivery", "Livraison", "#ff9d0a"],
-                  ["site", "Site", "#201a70"],
-                  ["shopify_pos", "Shopify POS", "#7258ff"],
-                  ["store", "Magasin", "#16a66a"],
+                  ["delivery", "Sorties · Livraison", "#ff9d0a"],
+                  ["site", "Commandes · Site", "#201a70"],
+                  ["shopify_pos", "Commandes · Shopify POS", "#7258ff"],
+                  ["store", "Sorties · Magasin", "#16a66a"],
                 ] as const).map(([key, label, color]) => (
                   <div key={key} className="rounded-xl border p-4">
                     <div className="flex items-center gap-2"><span className="size-2.5 rounded-full" style={{ backgroundColor: color }} /><p className="text-xs font-semibold">{label}</p></div>

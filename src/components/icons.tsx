@@ -22,6 +22,8 @@ import {
   ExternalLink,
   ShoppingCart,
   Users,
+  BellRing,
+  NotebookPen,
 } from "lucide-react";
 const icons = {
   home: Home,
@@ -47,6 +49,8 @@ const icons = {
   external: ExternalLink,
   cart: ShoppingCart,
   users: Users,
+  bell: BellRing,
+  notebook: NotebookPen,
 };
 export type IconName = keyof typeof icons;
 export function Icon({

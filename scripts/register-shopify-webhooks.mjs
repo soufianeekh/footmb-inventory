@@ -39,14 +39,18 @@ async function graphql(query, variables = {}) {
   return body.data;
 }
 
-const endpoint = `${appUrl}/api/webhooks/shopify`;
+const inventoryEndpoint = `${appUrl}/api/webhooks/shopify`;
+const ordersEndpoint = `${appUrl}/api/webhooks/shopify/orders`;
 const required = [
-  "INVENTORY_LEVELS_UPDATE",
-  "INVENTORY_LEVELS_CONNECT",
-  "INVENTORY_LEVELS_DISCONNECT",
-  "PRODUCTS_CREATE",
-  "PRODUCTS_UPDATE",
-  "PRODUCTS_DELETE",
+  ...[
+    "INVENTORY_LEVELS_UPDATE",
+    "INVENTORY_LEVELS_CONNECT",
+    "INVENTORY_LEVELS_DISCONNECT",
+    "PRODUCTS_CREATE",
+    "PRODUCTS_UPDATE",
+    "PRODUCTS_DELETE",
+  ].map((topic) => ({ topic, uri: inventoryEndpoint })),
+  ...["ORDERS_CREATE", "ORDERS_UPDATED", "ORDERS_CANCELLED"].map((topic) => ({ topic, uri: ordersEndpoint })),
 ];
 const existingData = await graphql(`query ExistingWebhooks {
   webhookSubscriptions(first: 250) { nodes { id topic uri } }
@@ -59,13 +63,13 @@ const mutation = `mutation RegisterWebhook($topic: WebhookSubscriptionTopic!, $u
   }
 }`;
 
-for (const topic of required) {
-  if (existing.some((subscription) => subscription.topic === topic && subscription.uri === endpoint)) {
-    console.log(`kept ${topic}`);
+for (const { topic, uri } of required) {
+  if (existing.some((subscription) => subscription.topic === topic && subscription.uri === uri)) {
+    console.log(`kept ${topic} → ${uri}`);
     continue;
   }
-  const data = await graphql(mutation, { topic, uri: endpoint });
+  const data = await graphql(mutation, { topic, uri });
   const errors = data.webhookSubscriptionCreate.userErrors;
   if (errors.length) throw new Error(`${topic}: ${errors.map((error) => error.message).join("; ")}`);
-  console.log(`created ${topic}`);
+  console.log(`created ${topic} → ${uri}`);
 }

@@ -1,4 +1,5 @@
 import { assertProductionSyncConfiguration, normalizeGid } from "./config";
+import { promoteAvailableCustomerAlerts } from "@/lib/customer-alert-availability";
 import { fetchInventoryItemVariant, fetchProductVariants } from "./shopify";
 import {
   acquireWriterLock,
@@ -114,6 +115,15 @@ export async function processInventoryQueue(limit = 20): Promise<WorkerResult> {
       message: processed ? `${processed} événement(s) Shopify appliqué(s)` : status.message,
       error: failed ? `${failed} événement(s) en attente de nouvelle tentative` : null,
     });
+    if (processed > 0) {
+      try {
+        await promoteAvailableCustomerAlerts();
+      } catch (error) {
+        // Alert processing is downstream of inventory correctness. A database
+        // hiccup must not cause Shopify inventory webhooks to be retried.
+        console.error("Could not refresh customer stock alerts", error);
+      }
+    }
     return { claimed: events.length, processed, failed, busy: false };
   } finally {
     await releaseWriterLock(lockToken);
