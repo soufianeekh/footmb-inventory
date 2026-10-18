@@ -66,7 +66,7 @@ export async function PATCH(request: Request) {
     const { sql, shopId } = await ensureManagementContext();
     const archived = await sql.begin(async (tx) => {
       const rows = await tx`update notes set archived_at = now(), updated_at = now(), updated_by = ${session.user.id}
-        where shop_id = ${shopId} and id = ${id} and archived_at is null returning id`;
+        where shop_id = ${shopId} and id = ${id} and version = ${expectedVersion} and archived_at is null returning id`;
       if (!rows.length) return false;
       await tx`insert into audit_logs (shop_id, actor_user_id, action, resource_type, resource_id, outcome)
         values (${shopId}, ${session.user.id}, 'notepad.archived', 'note', ${id}, 'completed')`;

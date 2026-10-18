@@ -172,7 +172,7 @@ export async function PATCH(request: Request) {
     if (!old) return { error: "Demande introuvable", statusCode: 404 };
     if (!allowedAtLocation(session, old.location_key)) return { error: "Cet emplacement ne vous est pas attribué", statusCode: 403 };
     const transitions: Record<string, string[]> = {
-      waiting: ["available", "cancelled", "expired"],
+      waiting: ["available", "resolved", "cancelled", "expired"],
       available: ["notified", "resolved", "cancelled", "expired"],
       notified: ["resolved", "cancelled"],
       resolved: [], cancelled: [], expired: [],

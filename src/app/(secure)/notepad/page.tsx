@@ -22,7 +22,7 @@ export default function NotepadPage() {
   const [error, setError] = useState("");
   const selected = notes.find((note) => note.id === selectedId) || null;
 
-  const load = useCallback(async (keepSelection = true) => {
+  const load = useCallback(async (keepSelection = true, preferredId?: string) => {
     setError("");
     try {
       const response = await fetch("/api/notepad", { cache: "no-store" });
@@ -30,7 +30,9 @@ export default function NotepadPage() {
       if (!response.ok) throw new Error(result.error || "Notes indisponibles");
       const loaded = result.notes as SharedNote[];
       setNotes(loaded);
-      const next = keepSelection && loaded.some((note) => note.id === selectedId) ? selectedId : loaded[0]?.id || "";
+      const next = preferredId && loaded.some((note) => note.id === preferredId)
+        ? preferredId
+        : keepSelection && loaded.some((note) => note.id === selectedId) ? selectedId : loaded[0]?.id || "";
       setSelectedId(next);
       const active = loaded.find((note) => note.id === next);
       setTitle(active?.title || ""); setBody(active?.body || ""); setPinned(active?.pinned || false);
@@ -68,8 +70,7 @@ export default function NotepadPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Enregistrement impossible");
-      await load(false);
-      if (result.note?.id) setSelectedId(result.note.id);
+      await load(false, result.note?.id);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Enregistrement impossible"); }
     finally { setBusy(false); }
   }
