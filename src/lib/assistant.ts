@@ -236,3 +236,18 @@ export function localAssistantReply(
   if (isFrench) return "Je n’ai trouvé aucun produit correspondant. Essayez le nom complet, le SKU, la taille ou l’emplacement.";
   return "Mal9itch produit مطابق. Jرب smiya kamla, SKU, taille wla emplacement.";
 }
+
+export function assistantReplyDeniesMatches(reply: string): boolean {
+  const normalized = normalizeAssistantText(reply);
+  return [
+    "ما كاين حتى منتوج",
+    "ما كاينش منتوج",
+    "لم اجد اي منتج",
+    "aucun produit",
+    "pas de produit",
+    "no matching product",
+    "couldn t find a product",
+    "could not find a product",
+    "mal9itch produit",
+  ].some((phrase) => normalized.includes(normalizeAssistantText(phrase)));
+}

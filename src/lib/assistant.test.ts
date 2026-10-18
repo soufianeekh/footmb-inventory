@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assistantReplyDeniesMatches,
   findAssistantProducts,
   getAssistantIntent,
   localAssistantReply,
@@ -108,5 +109,10 @@ describe("FOOTMB assistant product grounding", () => {
     expect(getAssistantIntent("Quels produits sont en stock faible ?")).toBe("low");
     expect(getAssistantIntent("give me a stock summary")).toBe("summary");
     expect(getAssistantIntent("سلام")).toBe("greeting");
+  });
+
+  it("detects an AI answer that contradicts grounded product cards", () => {
+    expect(assistantReplyDeniesMatches("ما كاين حتى منتوج باسم Phantom X")).toBe(true);
+    expect(assistantReplyDeniesMatches("J’ai trouvé des modèles Phantom proches.")).toBe(false);
   });
 });
