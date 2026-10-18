@@ -14,6 +14,7 @@ export default async function SecureLayout({ children }: { children: React.React
       name: session.user.name || session.user.email,
       email: session.user.email,
       role: session.user.role,
+      storeKeys: session.user.storeKeys,
     }}>{children}</AppShell>
   );
 }

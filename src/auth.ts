@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { canAttemptLogin } from "@/lib/login-limit";
 import { findUserByEmail } from "@/lib/users";
 import type { UserRole } from "@/lib/users";
+import { recordSuccessfulLogin } from "@/lib/activity";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: { signIn: "/login" },
@@ -26,7 +27,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const fallbackHash = "$2b$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalid";
         const correctPassword = await bcrypt.compare(password, user?.passwordHash || fallbackHash);
         if (!correctPassword || !user?.active) return null;
-        return { id: user.id, name: user.name, email: user.email, role: user.role };
+        await recordSuccessfulLogin(user.id);
+        return { id: user.id, name: user.name, email: user.email, role: user.role, storeKeys: user.storeKeys };
       },
     }),
   ],
@@ -35,16 +37,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.role = user.role;
         token.userId = user.id;
+        token.storeKeys = user.storeKeys;
       } else if (token.email) {
         const current = await findUserByEmail(token.email);
         if (current?.active) {
           token.role = current.role;
           token.userId = current.id;
           token.name = current.name;
+          token.storeKeys = current.storeKeys;
         } else {
           token.role = undefined;
           token.userId = undefined;
           token.email = null;
+          token.storeKeys = undefined;
         }
       }
       return token;
@@ -53,8 +58,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const adminEmail = process.env.FOOTMB_ADMIN_EMAIL?.trim().toLowerCase();
       session.user.role =
         (token.role as UserRole | undefined) ||
-        (adminEmail && token.email?.toLowerCase() === adminEmail ? "admin" : "reader");
+        (adminEmail && token.email?.toLowerCase() === adminEmail ? "builder" : "reader");
       session.user.id = typeof token.userId === "string" ? token.userId : String(token.sub || "");
+      session.user.storeKeys = Array.isArray(token.storeKeys) ? token.storeKeys.filter((key): key is string => typeof key === "string") : [];
       return session;
     },
   },

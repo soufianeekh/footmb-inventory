@@ -17,7 +17,8 @@ type SaleHistory = { id: string; source: "delivery" | "store"; createdAt: string
 export default function PosPage() {
   const { products, variants, ready, refresh } = useInventory();
   const user = useCurrentUser();
-  const canEdit = user.role === "editor" || user.role === "admin";
+  const canEdit = user.role === "editor" || user.role === "admin" || user.role === "builder";
+  const authorizedLocations = user.role === "builder" ? LOCATIONS : LOCATIONS.filter((item) => user.storeKeys.includes(item.key));
   const [query, setQuery] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState("");
@@ -50,7 +51,7 @@ export default function PosPage() {
     });
   }, [products, variants, query]);
   const selectedVariants = variants.filter((variant) => variant.productId === selectedProductId && variant.tracked);
-  const availableLocations = LOCATIONS.filter((item) =>
+  const availableLocations = authorizedLocations.filter((item) =>
     selectedVariants.some((variant) => variant.stock[item.key] > 0),
   );
   const activeLocation = availableLocations.some((item) => item.key === location)
@@ -67,7 +68,7 @@ export default function PosPage() {
       (variant) => variant.productId === productId && variant.tracked,
     );
     const firstLocation =
-      LOCATIONS.find((item) =>
+      authorizedLocations.find((item) =>
         productVariants.some((variant) => variant.stock[item.key] > 0),
       )?.key || "stockCasa";
     const first = productVariants.find((variant) => variant.stock[firstLocation] > 0);

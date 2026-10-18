@@ -83,7 +83,7 @@ export default function ProductDetailPage() {
                   </span>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  {currentUser.role !== "reader" && (
+                  {(currentUser.role === "editor" || currentUser.role === "admin" || currentUser.role === "builder") && (
                     <Button variant="outline" onClick={() => void verify()} disabled={verifying}>
                       <Icon name="refresh" size={16} className={verifying ? "animate-spin" : ""} />
                       {verifying ? "Vérification…" : "Vérifier dans Shopify"}

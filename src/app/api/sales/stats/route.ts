@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthenticatedSession } from "@/lib/admin-auth";
+import { permissionSession } from "@/lib/admin-auth";
 import { listSales } from "@/lib/sales";
 import { fetchShopifySaleSummaries } from "@/lib/sync/shopify";
 
@@ -7,7 +7,7 @@ const SOURCES = ["delivery", "store", "site", "shopify_pos"] as const;
 type Source = typeof SOURCES[number];
 
 export async function GET(request: Request) {
-  if (!(await isAuthenticatedSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await permissionSession("statistics.read"))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const url = new URL(request.url);
   const requestedDays = Number(url.searchParams.get("days") || 30);
   const days = [7, 30, 60].includes(requestedDays) ? requestedDays : 30;

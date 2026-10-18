@@ -4,6 +4,10 @@ import { LOCATION_KEYS, type LocationKey } from "@/lib/inventory";
 import { getSale, listSales, putSale, type ManualSaleSource, type SaleEvent, type SaleLine } from "@/lib/sales";
 import { adjustInventoryQuantities, fetchInventoryItemVariant } from "@/lib/sync/shopify";
 import { applyInventoryItemVariant, getSnapshot } from "@/lib/sync/store";
+import { hasPermission } from "@/lib/permissions";
+import { recordActivity } from "@/lib/activity";
+import { hasDatabaseConfiguration } from "@/lib/db";
+import { beginStockMovement, completeStockMovement, failStockMovement } from "@/lib/stock-movements";
 
 type RequestLine = { variantId?: unknown; location?: unknown; quantity?: unknown };
 
@@ -14,15 +18,17 @@ function badRequest(error: string, status = 400) {
 export async function GET() {
   const session = await auth();
   if (!session?.user?.email) return badRequest("Unauthorized", 401);
+  if (!hasPermission(session.user.role, "pos.read")) return badRequest("Accès interdit", 403);
   return NextResponse.json({ sales: await listSales(100) }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.email) return badRequest("Unauthorized", 401);
-  if (session.user.role !== "editor" && session.user.role !== "admin") {
+  if (!hasPermission(session.user.role, "pos.adjust")) {
     return badRequest("Votre profil est en lecture seule", 403);
   }
+  if (!hasDatabaseConfiguration()) return badRequest("Le journal d’activité durable n’est pas configuré", 503);
   let body: { operationId?: unknown; source?: unknown; lines?: unknown };
   try { body = await request.json(); } catch { return badRequest("Requête invalide"); }
   const operationId = typeof body.operationId === "string" ? body.operationId : "";
@@ -44,6 +50,9 @@ export async function POST(request: Request) {
     const quantity = Number(raw.quantity);
     if (!variantId || !LOCATION_KEYS.includes(location) || !Number.isInteger(quantity) || quantity < 1 || quantity > 999) {
       return badRequest("Ligne de vente invalide");
+    }
+    if (session.user.role !== "builder" && !session.user.storeKeys.includes(location)) {
+      return badRequest("Cet emplacement ne vous est pas attribué", 403);
     }
     const unique = `${variantId}:${location}`;
     if (seen.has(unique)) return badRequest("Une variante ne peut apparaître qu’une fois par emplacement");
@@ -80,8 +89,25 @@ export async function POST(request: Request) {
     completedAt: null,
     error: null,
   };
-  await putSale(started);
   try {
+    await recordActivity({
+      actorUserId: session.user.id, action: "pos.sale.initiated", resourceType: "sale",
+      resourceId: operationId, outcome: "accepted", idempotencyKey: operationId,
+      metadata: { source, lines: lines.map((line) => ({
+        productId: line.productId, variantId: line.variantId, inventoryItemId: line.inventoryItemId,
+        product: line.productName, size: line.size, location: line.location, locationId: line.locationId,
+        quantity: line.quantity, quantityBefore: line.quantityBefore,
+      })) },
+    });
+    await beginStockMovement({
+      id: operationId, actorUserId: session.user.id, reason: source,
+      lines: lines.map((line) => ({
+        productId: line.productId, variantId: line.variantId, inventoryItemId: line.inventoryItemId,
+        locationId: line.locationId, productName: line.productName, size: line.size,
+        quantity: line.quantity, quantityBefore: line.quantityBefore,
+      })),
+    });
+    await putSale(started);
     const result = await adjustInventoryQuantities(
       operationId,
       lines.map((line) => ({
@@ -97,10 +123,28 @@ export async function POST(request: Request) {
     }
     const completed: SaleEvent = { ...started, status: "completed", completedAt: result.createdAt, error: null };
     await putSale(completed);
+    await completeStockMovement(operationId, result.createdAt);
+    await recordActivity({
+      actorUserId: session.user.id, action: "pos.sale.confirmed", resourceType: "sale",
+      resourceId: operationId, outcome: "completed", idempotencyKey: operationId,
+      afterState: { lines: lines.map((line) => ({
+        productId: line.productId, variantId: line.variantId, inventoryItemId: line.inventoryItemId,
+        size: line.size, location: line.location, locationId: line.locationId,
+        quantityBefore: line.quantityBefore,
+        quantityAfter: line.quantityBefore - line.quantity,
+      })) },
+      metadata: { source, shopifyReferenceUri: `footmb://sale/${operationId}`, shopifyOrderReference: null },
+    });
     return NextResponse.json({ success: true, sale: completed }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = (error instanceof Error ? error.message : "La vente Shopify a échoué").slice(0, 500);
     await putSale({ ...started, status: "failed", error: message });
+    await failStockMovement(operationId, message).catch(() => undefined);
+    await recordActivity({
+      actorUserId: session.user.id, action: "pos.sale.failed", resourceType: "sale",
+      resourceId: operationId, outcome: "failed", idempotencyKey: operationId,
+      metadata: { source, error: message },
+    }).catch(() => undefined);
     return badRequest(message, 409);
   }
 }

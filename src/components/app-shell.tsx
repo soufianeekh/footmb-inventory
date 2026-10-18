@@ -34,13 +34,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, LogOut } from "lucide-react";
-import { UserProvider, type CurrentUser } from "@/components/user-context";
-const links: { href: string; label: string; icon: IconName }[] = [
-  { href: "/", label: "Tableau de bord", icon: "home" },
-  { href: "/inventory", label: "Inventaire", icon: "box" },
-  { href: "/pos", label: "POS", icon: "cart" },
-  { href: "/stats", label: "Statistiques", icon: "chart" },
-  { href: "/settings", label: "Réglages", icon: "settings" },
+import { UserProvider, useCurrentUser, type CurrentUser } from "@/components/user-context";
+import { hasPermission, type Permission } from "@/lib/permissions";
+const links: { href: string; label: string; icon: IconName; permission: Permission }[] = [
+  { href: "/", label: "Tableau de bord", icon: "home", permission: "dashboard.read" },
+  { href: "/inventory", label: "Inventaire", icon: "box", permission: "inventory.read" },
+  { href: "/pos", label: "POS", icon: "cart", permission: "pos.read" },
+  { href: "/stats", label: "Statistiques", icon: "chart", permission: "statistics.read" },
+  { href: "/activity", label: "Activité équipe", icon: "clock", permission: "staff.activity.read" },
+  { href: "/users", label: "Utilisateurs", icon: "users", permission: "staff.manage" },
+  { href: "/settings", label: "Réglages", icon: "settings", permission: "settings.manage" },
 ];
 function NavigationLink(props: React.ComponentProps<typeof Link>) {
   const { setOpenMobile } = useSidebar();
@@ -76,6 +79,7 @@ function Chrome({ children }: { children: React.ReactNode }) {
     router = useRouter();
   const [search, setSearch] = useState("");
   const { ready, syncing, error, refresh, progress } = useInventory();
+  const currentUser = useCurrentUser();
   return (
     <SidebarProvider
       style={{ "--sidebar-width": "254px" } as React.CSSProperties}
@@ -86,7 +90,7 @@ function Chrome({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent className="px-4 pt-5">
           <SidebarMenu className="gap-2">
-            {links.map((l) => (
+            {links.filter((link) => hasPermission(currentUser.role, link.permission)).map((l) => (
               <SidebarMenuItem key={l.href}>
                 <SidebarMenuButton
                   asChild
@@ -198,9 +202,11 @@ function Chrome({ children }: { children: React.ReactNode }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href="/settings">Informations de la boutique</Link>
-                </DropdownMenuItem>
+                {hasPermission(currentUser.role, "settings.manage") && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">Informations de la boutique</Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => void signOut({ redirectTo: "/login" })}
                 >

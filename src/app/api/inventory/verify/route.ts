@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { isEditorSession } from "@/lib/admin-auth";
+import { permissionSession } from "@/lib/admin-auth";
+import { recordActivity } from "@/lib/activity";
 import { normalizeGid } from "@/lib/sync/config";
 import { fetchProductVariants } from "@/lib/sync/shopify";
 import { getSnapshot, replaceProductVariants } from "@/lib/sync/store";
 
 export async function POST(request: Request) {
-  if (!(await isEditorSession())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await permissionSession("inventory.verify");
+  if (!session) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   let body: { productId?: unknown };
   try {
     body = (await request.json()) as { productId?: unknown };
@@ -40,6 +40,14 @@ export async function POST(request: Request) {
       authoritative,
       verifiedAt,
     );
+    await recordActivity({
+      actorUserId: session.user.id,
+      action: repaired ? "inventory.cache.repaired" : "inventory.product.verified",
+      resourceType: "shopify_product", resourceId: productId, outcome: "completed",
+      beforeState: cached.map(({ variantId, size, stock, locationIds, tracked }) => ({ variantId, size, stock, locationIds, tracked })),
+      afterState: authoritative.map(({ variantId, size, stock, locationIds, tracked }) => ({ variantId, size, stock, locationIds, tracked })),
+      metadata: { revision, modifiedShopifyInventory: false },
+    });
     return NextResponse.json({
       success: true,
       repaired,

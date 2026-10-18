@@ -8,9 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { signOut } from "next-auth/react";
-import { Input } from "@/components/ui/input";
 import { useCurrentUser } from "@/components/user-context";
-import type { PublicUser } from "@/lib/users";
 
 function SettingRow({
   title,
@@ -83,13 +81,8 @@ export default function SettingsPage() {
     snapshot: { variantCount: number; productCount: number } | null;
   } | null>(null);
   const [reconciling, setReconciling] = useState(false);
-  const [users, setUsers] = useState<PublicUser[]>([]);
-  const [userError, setUserError] = useState<string | null>(null);
-  const [creatingUser, setCreatingUser] = useState(false);
-  const [userForm, setUserForm] = useState({ name: "", email: "", password: "", role: "reader" as "reader" | "editor" });
-
   useEffect(() => {
-    if (currentUser.role !== "admin") {
+    if (currentUser.role !== "builder") {
       return;
     }
     let active = true;
@@ -103,37 +96,6 @@ export default function SettingsPage() {
       active = false;
     };
   }, [revision, currentUser.role]);
-
-  const loadUsers = async () => {
-    if (currentUser.role !== "admin") return;
-    const response = await fetch("/api/users", { cache: "no-store" });
-    if (response.ok) setUsers(((await response.json()) as { users: PublicUser[] }).users);
-  };
-  useEffect(() => {
-    let active = true;
-    if (currentUser.role === "admin") {
-      fetch("/api/users", { cache: "no-store" })
-        .then((response) => response.ok ? response.json() : null)
-        .then((body: { users?: PublicUser[] } | null) => {
-          if (active && body?.users) setUsers(body.users);
-        })
-        .catch(() => undefined);
-    }
-    return () => { active = false; };
-  }, [currentUser.role]);
-
-  const addUser = async () => {
-    setCreatingUser(true);
-    setUserError(null);
-    try {
-      const response = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(userForm) });
-      const body = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(body.error || "Création impossible");
-      setUserForm({ name: "", email: "", password: "", role: "reader" });
-      await loadUsers();
-    } catch (error) { setUserError(error instanceof Error ? error.message : "Création impossible"); }
-    finally { setCreatingUser(false); }
-  };
 
   const reconcile = async () => {
     setReconciling(true);
@@ -218,7 +180,7 @@ export default function SettingsPage() {
               <Icon name="refresh" size={16} className={syncing ? "animate-spin" : ""} />
               {syncing ? "Actualisation…" : "Actualiser l’instantané"}
             </Button>
-            {currentUser.role === "admin" && (
+            {currentUser.role === "builder" && (
               <Button variant="outline" onClick={() => void reconcile()} disabled={reconciling}>
                 <Icon name="refresh" size={16} className={reconciling ? "animate-spin" : ""} />
                 Vérifier les nouveautés
@@ -226,7 +188,7 @@ export default function SettingsPage() {
             )}
           </div>
         </Surface>
-        {currentUser.role === "admin" && (
+        {currentUser.role === "builder" && (
           <Surface className="p-4 sm:p-5 lg:col-span-2">
             <SectionHead
               icon="refresh"
@@ -246,32 +208,6 @@ export default function SettingsPage() {
               <SettingRow title="Variantes en cache" value={String(diagnostics?.snapshot?.variantCount ?? "—")} />
               <SettingRow title="Événements en attente" value={String(diagnostics?.queue.ready ?? "—")} />
               <SettingRow title="Nouvelles tentatives / erreurs" value={`${diagnostics?.queue.retry ?? "—"} / ${diagnostics?.queue.dead ?? "—"}`} />
-            </div>
-          </Surface>
-        )}
-        {currentUser.role === "admin" && (
-          <Surface className="p-4 sm:p-5 lg:col-span-2">
-            <SectionHead icon="shield" title="Utilisateurs et profils" detail="Créez des accès Lecteur ou Éditeur. Les mots de passe sont hachés côté serveur." />
-            <Separator />
-            <div className="grid gap-3 py-4 md:grid-cols-5">
-              <Input placeholder="Nom" value={userForm.name} onChange={(event) => setUserForm((form) => ({ ...form, name: event.target.value }))} />
-              <Input type="email" placeholder="E-mail" value={userForm.email} onChange={(event) => setUserForm((form) => ({ ...form, email: event.target.value }))} />
-              <Input type="password" placeholder="Mot de passe (10+ caractères)" value={userForm.password} onChange={(event) => setUserForm((form) => ({ ...form, password: event.target.value }))} />
-              <select className="h-9 rounded-md border bg-white px-3 text-sm" value={userForm.role} onChange={(event) => setUserForm((form) => ({ ...form, role: event.target.value as "reader" | "editor" }))}>
-                <option value="reader">Lecteur</option>
-                <option value="editor">Éditeur</option>
-              </select>
-              <Button disabled={creatingUser} onClick={() => void addUser()}>{creatingUser ? "Création…" : "Ajouter"}</Button>
-            </div>
-            {userError && <p className="mb-3 text-xs font-medium text-rose-600">{userError}</p>}
-            <div className="divide-y rounded-lg border">
-              {users.map((user) => (
-                <div key={user.id} className="flex flex-wrap items-center gap-3 p-3 text-sm">
-                  <div className="min-w-0 flex-1"><p className="font-medium">{user.name}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div>
-                  <Badge variant="secondary">{user.role === "admin" ? "Administrateur" : user.role === "editor" ? "Éditeur" : "Lecteur"}</Badge>
-                  {user.role !== "admin" && <Button size="sm" variant="ghost" onClick={async () => { await fetch("/api/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email }) }); await loadUsers(); }}>Supprimer</Button>}
-                </div>
-              ))}
             </div>
           </Surface>
         )}
