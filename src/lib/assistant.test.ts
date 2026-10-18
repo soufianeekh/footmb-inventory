@@ -50,6 +50,12 @@ describe("FOOTMB assistant product grounding", () => {
     expect(findAssistantProducts(products, "phantom x").map((item) => item.model)).toEqual([
       "Nike Phantom GX Elite",
     ]);
+    expect(
+      findAssistantProducts(
+        products,
+        "Qelleb lia 3la Phantom w wrini stock w tailles disponibles.",
+      ).map((item) => item.model),
+    ).toEqual(["Nike Phantom GX Elite"]);
   });
 
   it("filters size and location questions against positive stock", () => {

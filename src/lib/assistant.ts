@@ -106,8 +106,13 @@ function extractLocation(query: string): LocationKey | null {
 
 function extractSize(query: string): string | null {
   const normalized = normalizeAssistantText(query);
-  const labelled = normalized.match(/(?:taille|size|pointure)\s*([a-z0-9./-]+)/);
-  if (labelled?.[1]) return labelled[1].toUpperCase();
+  const labelled = normalized.match(/(?:tailles?|sizes?|pointures?)\s+([a-z0-9./-]+)\b/);
+  if (
+    labelled?.[1] &&
+    /^(?:\d{1,2}(?:[.,]\d)?|xxs|xs|s|m|l|xl|xxl|xxxl|[2-6]xl|tu|standard)$/i.test(labelled[1])
+  ) {
+    return labelled[1].toUpperCase().replace(",", ".");
+  }
   const numeric = normalized.match(/\b(3[5-9]|4[0-9]|5[0-2])(?:[.,]5)?\b/);
   return numeric?.[0]?.replace(",", ".") || null;
 }
