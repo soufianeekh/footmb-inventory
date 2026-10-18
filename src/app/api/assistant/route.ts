@@ -17,6 +17,7 @@ const SYSTEM_PROMPT = `You are FOOTMB Assistant, the internal inventory copilot 
 LANGUAGE
 - Always answer in the same language as the employee: Moroccan Darija (Arabic or Latin script), Arabic, French, or English.
 - Be concise, practical, and easy to understand. Darija should sound natural in Morocco.
+- Return plain text only. Do not use Markdown tables, headings, bold markers, or code fences.
 
 PROJECT KNOWLEDGE
 - FOOTMB Inventory is connected to Shopify and tracks products and variants in real time.

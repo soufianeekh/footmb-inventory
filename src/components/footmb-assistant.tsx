@@ -201,7 +201,7 @@ export function FootmbAssistant() {
               >
                 <div
                   dir="auto"
-                  className={`rounded-2xl px-3.5 py-3 text-[13px] leading-5 ${
+                  className={`whitespace-pre-wrap rounded-2xl px-3.5 py-3 text-[13px] leading-5 ${
                     message.role === "user"
                       ? "rounded-br-md bg-[#17145f] text-white"
                       : "rounded-bl-md border bg-white text-[#252653] shadow-sm"

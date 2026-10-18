@@ -58,6 +58,33 @@ describe("FOOTMB assistant product grounding", () => {
     ).toEqual(["Nike Phantom GX Elite"]);
   });
 
+  it("treats generic stock questions as all locations and hides unavailable matches when requested", () => {
+    const casaOnly = {
+      ...products[0],
+      id: "gid://shopify/Product/3",
+      slug: "3",
+      model: "Phantom Casa Only",
+      sizes: { stockCasa: [], casa: [{ size: "44", quantity: 1 }], tanger: [] },
+      units: { stockCasa: 0, casa: 1, tanger: 0 },
+      total: 1,
+    };
+    const unavailable = {
+      ...casaOnly,
+      id: "gid://shopify/Product/4",
+      slug: "4",
+      model: "Phantom Sold Out",
+      sizes: { stockCasa: [], casa: [], tanger: [] },
+      units: { stockCasa: 0, casa: 0, tanger: 0 },
+      total: 0,
+    };
+    expect(
+      findAssistantProducts(
+        [casaOnly, unavailable],
+        "wrini stock Phantom disponible",
+      ).map((item) => item.model),
+    ).toEqual(["Phantom Casa Only"]);
+  });
+
   it("filters size and location questions against positive stock", () => {
     expect(findAssistantProducts(products, "pointure 43 f Casa").map((item) => item.model)).toEqual([
       "Nike Phantom GX Elite",

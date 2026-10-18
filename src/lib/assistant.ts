@@ -98,7 +98,7 @@ function queryTokens(query: string): string[] {
 
 function extractLocation(query: string): LocationKey | null {
   const normalized = normalizeAssistantText(query);
-  if (/\b(stock casa|stock|depot|warehouse)\b/.test(normalized)) return "stockCasa";
+  if (/\b(stock casa|depot|warehouse|f stock|fi stock|dans stock|at stock)\b/.test(normalized)) return "stockCasa";
   if (/\b(casablanca|casa)\b/.test(normalized)) return "casa";
   if (/\b(tanger|tangier)\b/.test(normalized)) return "tanger";
   return null;
@@ -147,6 +147,7 @@ export function findAssistantProducts(
   const tokens = queryTokens(query);
   const location = extractLocation(query);
   const size = extractSize(query);
+  const asksForAvailable = /\b(available|availability|disponible|disponibles|متوفر|متوفرة)\b/u.test(normalizedQuery);
 
   if (!tokens.length && !size) return [];
 
@@ -164,6 +165,7 @@ export function findAssistantProducts(
       if (size && matchingSizeQuantity === 0) score = 0;
       const available = location ? product.units[location] : product.total;
       if (location && available === 0) score = 0;
+      if (asksForAvailable && product.total === 0) score = 0;
       return { product, score, available };
     })
     .filter((item) => item.score > 0)
