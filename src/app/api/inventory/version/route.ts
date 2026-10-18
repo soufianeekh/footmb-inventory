@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       changed:
         Number.isFinite(requestedRevision) && currentRevision > requestedRevision,
       verifiedAt: snapshot?.verifiedAt ?? null,
-      reconciledAt: snapshot?.reconciledAt ?? null,
+      reconciledAt: status.lastReconciledAt ?? snapshot?.reconciledAt ?? null,
       sync: status,
     },
     { headers: { "Cache-Control": "private, no-store" } },

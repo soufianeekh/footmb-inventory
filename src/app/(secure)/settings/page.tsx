@@ -89,6 +89,9 @@ export default function SettingsPage() {
   const [userForm, setUserForm] = useState({ name: "", email: "", password: "", role: "reader" as "reader" | "editor" });
 
   useEffect(() => {
+    if (currentUser.role !== "admin") {
+      return;
+    }
     let active = true;
     fetch("/api/inventory/diagnostics", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
@@ -99,7 +102,7 @@ export default function SettingsPage() {
     return () => {
       active = false;
     };
-  }, [revision]);
+  }, [revision, currentUser.role]);
 
   const loadUsers = async () => {
     if (currentUser.role !== "admin") return;
@@ -223,21 +226,29 @@ export default function SettingsPage() {
             )}
           </div>
         </Surface>
-        <Surface className="p-4 sm:p-5 lg:col-span-2">
-          <SectionHead
-            icon="refresh"
-            title="Diagnostic de synchronisation"
-            detail="État protégé du cache et de la file de traitement."
-            status={diagnostics?.backend === "redis" ? "Redis" : "Mémoire locale"}
-          />
-          <Separator />
-          <div className="grid gap-4 pt-3 sm:grid-cols-4">
-            <SettingRow title="Produits en cache" value={String(diagnostics?.snapshot?.productCount ?? "—")} />
-            <SettingRow title="Variantes en cache" value={String(diagnostics?.snapshot?.variantCount ?? "—")} />
-            <SettingRow title="Événements en attente" value={String(diagnostics?.queue.ready ?? "—")} />
-            <SettingRow title="Nouvelles tentatives / erreurs" value={`${diagnostics?.queue.retry ?? "—"} / ${diagnostics?.queue.dead ?? "—"}`} />
-          </div>
-        </Surface>
+        {currentUser.role === "admin" && (
+          <Surface className="p-4 sm:p-5 lg:col-span-2">
+            <SectionHead
+              icon="refresh"
+              title="Diagnostic de synchronisation"
+              detail="État protégé du cache et de la file de traitement."
+              status={
+                diagnostics
+                  ? diagnostics.backend === "redis"
+                    ? "Redis"
+                    : "Mémoire locale"
+                  : "Chargement"
+              }
+            />
+            <Separator />
+            <div className="grid gap-4 pt-3 sm:grid-cols-4">
+              <SettingRow title="Produits en cache" value={String(diagnostics?.snapshot?.productCount ?? "—")} />
+              <SettingRow title="Variantes en cache" value={String(diagnostics?.snapshot?.variantCount ?? "—")} />
+              <SettingRow title="Événements en attente" value={String(diagnostics?.queue.ready ?? "—")} />
+              <SettingRow title="Nouvelles tentatives / erreurs" value={`${diagnostics?.queue.retry ?? "—"} / ${diagnostics?.queue.dead ?? "—"}`} />
+            </div>
+          </Surface>
+        )}
         {currentUser.role === "admin" && (
           <Surface className="p-4 sm:p-5 lg:col-span-2">
             <SectionHead icon="shield" title="Utilisateurs et profils" detail="Créez des accès Lecteur ou Éditeur. Les mots de passe sont hachés côté serveur." />

@@ -36,6 +36,8 @@ export type ShopifyPage = {
     processedVariants: number;
     message: string | null;
     error: string | null;
+    lastVerifiedAt?: string | null;
+    lastReconciledAt?: string | null;
   };
   error?: string;
 };

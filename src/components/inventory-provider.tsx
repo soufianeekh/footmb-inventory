@@ -118,6 +118,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const revisionRef = useRef(0);
   const syncPhaseRef = useRef<SyncPhase>("empty");
   const errorRef = useRef<string | null>(null);
+  const reconciledAtRef = useRef<string | null>(null);
   const snapshotControllerRef = useRef<AbortController | null>(null);
 
   const loadSnapshot = useCallback(async (foreground: boolean) => {
@@ -147,9 +148,12 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         setRevision(nextRevision);
         revisionRef.current = nextRevision;
         setSyncedAt(snapshot.meta?.verifiedAt ? new Date(snapshot.meta.verifiedAt) : new Date());
-        setReconciledAt(
-          snapshot.meta?.reconciledAt ? new Date(snapshot.meta.reconciledAt) : null,
-        );
+      }
+      const nextReconciledAt =
+        snapshot.sync?.lastReconciledAt || snapshot.meta?.reconciledAt || null;
+      if (nextReconciledAt !== reconciledAtRef.current) {
+        reconciledAtRef.current = nextReconciledAt;
+        setReconciledAt(nextReconciledAt ? new Date(nextReconciledAt) : null);
       }
       const nextPhase = snapshot.sync?.phase || "ready";
       if (nextPhase !== syncPhaseRef.current) {
@@ -237,6 +241,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         const body = (await response.json()) as {
           revision?: number;
           changed?: boolean;
+          reconciledAt?: string | null;
           sync?: { phase?: SyncPhase; error?: string | null };
         };
         consecutiveFailures = 0;
@@ -248,6 +253,10 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         if (nextError !== errorRef.current) {
           errorRef.current = nextError;
           setError(nextError);
+        }
+        if (body.reconciledAt && body.reconciledAt !== reconciledAtRef.current) {
+          reconciledAtRef.current = body.reconciledAt;
+          setReconciledAt(new Date(body.reconciledAt));
         }
         const remoteRevision = body.revision || 0;
         if (
