@@ -5,10 +5,16 @@ import { canAttemptLogin } from "@/lib/login-limit";
 import { findUserByEmail } from "@/lib/users";
 import type { UserRole } from "@/lib/users";
 import { recordSuccessfulLogin } from "@/lib/activity";
+import {
+  hasSessionExceededAbsoluteAge,
+  resolveSessionStartedAt,
+  SESSION_IDLE_MAX_AGE_SECONDS,
+} from "@/lib/auth-session";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: { signIn: "/login" },
-  session: { strategy: "jwt", maxAge: 60 * 60 * 8 },
+  session: { strategy: "jwt", maxAge: SESSION_IDLE_MAX_AGE_SECONDS, updateAge: 60 * 60 },
+  jwt: { maxAge: SESSION_IDLE_MAX_AGE_SECONDS },
   providers: [
     Credentials({
       credentials: {
@@ -38,7 +44,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role;
         token.userId = user.id;
         token.storeKeys = user.storeKeys;
+        token.sessionStartedAt = Date.now();
       } else if (token.email) {
+        const sessionStartedAt = resolveSessionStartedAt(token.sessionStartedAt, token.iat);
+        token.sessionStartedAt = sessionStartedAt;
+        if (hasSessionExceededAbsoluteAge(sessionStartedAt)) {
+          token.role = undefined;
+          token.userId = undefined;
+          token.email = null;
+          token.storeKeys = undefined;
+          return token;
+        }
         const current = await findUserByEmail(token.email);
         if (current?.active) {
           token.role = current.role;

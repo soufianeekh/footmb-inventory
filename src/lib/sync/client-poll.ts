@@ -1,8 +1,9 @@
 export function shouldCheckInventoryVersion(
   visibility: DocumentVisibilityState,
   loading: boolean,
+  authenticationExpired = false,
 ): boolean {
-  return visibility === "visible" && !loading;
+  return visibility === "visible" && !loading && !authenticationExpired;
 }
 
 export function shouldRefreshInventory(

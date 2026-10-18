@@ -9,7 +9,7 @@ import { processInventoryQueue } from "@/lib/sync/worker";
 export async function GET() {
   if (!(await isAuthenticatedSession())) {
     return NextResponse.json(
-      { error: "Unauthorized" },
+      { error: "Session expired", code: "AUTH_SESSION_EXPIRED" },
       { status: 401, headers: { "Cache-Control": "no-store" } },
     );
   }

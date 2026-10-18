@@ -13,6 +13,7 @@ describe("client revision polling", () => {
     expect(shouldCheckInventoryVersion("hidden", false)).toBe(false);
     expect(shouldCheckInventoryVersion("visible", true)).toBe(false);
     expect(shouldCheckInventoryVersion("visible", false)).toBe(true);
+    expect(shouldCheckInventoryVersion("visible", false, true)).toBe(false);
   });
 
   it("refreshes once only when the server revision advances", () => {

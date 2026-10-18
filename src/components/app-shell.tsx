@@ -5,7 +5,7 @@ import footmbLogo from "../../public/footmb-logo.png";
 import brandReference from "../../public/brand-reference.png";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { signOut } from "next-auth/react";
+import { SessionProvider, signOut } from "next-auth/react";
 import {
   InventoryProvider,
   useInventory,
@@ -33,9 +33,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown, LogOut, ShieldAlert } from "lucide-react";
 import { UserProvider, useCurrentUser, type CurrentUser } from "@/components/user-context";
 import { hasPermission, type Permission } from "@/lib/permissions";
+import { safeCallbackPath, SESSION_RENEWAL_INTERVAL_SECONDS } from "@/lib/auth-session";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 const links: { href: string; label: string; icon: IconName; permission: Permission }[] = [
   { href: "/", label: "Tableau de bord", icon: "home", permission: "dashboard.read" },
   { href: "/inventory", label: "Inventaire", icon: "box", permission: "inventory.read" },
@@ -78,7 +80,7 @@ function Chrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname(),
     router = useRouter();
   const [search, setSearch] = useState("");
-  const { ready, syncing, error, refresh, progress } = useInventory();
+  const { ready, syncing, error, refresh, progress, authExpired } = useInventory();
   const currentUser = useCurrentUser();
   return (
     <SidebarProvider
@@ -174,6 +176,8 @@ function Chrome({ children }: { children: React.ReactNode }) {
               <span className="size-1.5 rounded-full bg-current" />
               {error
                 ? "Erreur sync"
+                : authExpired
+                  ? "Session expirée"
                 : syncing
                   ? "Chargement"
                   : ready
@@ -183,7 +187,7 @@ function Chrome({ children }: { children: React.ReactNode }) {
             <Button
               size="icon"
               variant="ghost"
-              disabled={syncing}
+              disabled={syncing || authExpired}
               onClick={refresh}
               aria-label="Actualiser Shopify"
             >
@@ -243,19 +247,44 @@ function Chrome({ children }: { children: React.ReactNode }) {
                 Synchronisation Shopify · {progress} variantes chargées
               </p>
             )}
-            {children}
+            {authExpired ? (
+              <div className="min-h-[45vh] rounded-xl border bg-white" aria-hidden="true" />
+            ) : children}
           </div>
         </div>
+        <Dialog open={authExpired} onOpenChange={() => undefined}>
+          <DialogContent showCloseButton={false} className="sm:max-w-md">
+            <DialogHeader>
+              <div className="mb-2 flex size-11 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+                <ShieldAlert size={22} />
+              </div>
+              <DialogTitle>Session expirée</DialogTitle>
+              <DialogDescription className="leading-6">
+                Votre session sécurisée est terminée. La synchronisation a été arrêtée et les données d’inventaire ont été retirées de cet écran.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button className="w-full sm:w-auto" onClick={() => {
+                const intended = safeCallbackPath(`${window.location.pathname}${window.location.search}`);
+                router.replace(`/login?callbackUrl=${encodeURIComponent(intended)}`);
+              }}>
+                Se reconnecter
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   );
 }
 export function AppShell({ children, user }: { children: React.ReactNode; user: CurrentUser }) {
   return (
-    <UserProvider user={user}>
-      <InventoryProvider>
-        <Chrome>{children}</Chrome>
-      </InventoryProvider>
-    </UserProvider>
+    <SessionProvider refetchInterval={SESSION_RENEWAL_INTERVAL_SECONDS} refetchOnWindowFocus>
+      <UserProvider user={user}>
+        <InventoryProvider>
+          <Chrome>{children}</Chrome>
+        </InventoryProvider>
+      </UserProvider>
+    </SessionProvider>
   );
 }

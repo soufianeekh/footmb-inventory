@@ -22,6 +22,7 @@ import {
   shouldCheckInventoryVersion,
   shouldRefreshInventory,
 } from "@/lib/sync/client-poll";
+import { classifyInventoryResponse } from "@/lib/auth-session";
 
 type SyncPhase = "empty" | "syncing" | "ready" | "degraded" | "error";
 
@@ -37,11 +38,18 @@ type Store = {
   reconciledAt: Date | null;
   revision: number;
   syncPhase: SyncPhase;
+  authExpired: boolean;
   refresh: () => void;
 };
 
 const Context = createContext<Store | null>(null);
-const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+export class SessionExpiredError extends Error {
+  constructor() {
+    super("Session expirée");
+    this.name = "SessionExpiredError";
+  }
+}
 
 function wait(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -77,16 +85,15 @@ async function fetchSnapshot(
       credentials: "same-origin",
       signal,
     });
-    if (response.status === 401) {
-      throw new Error("Session expirée. Reconnectez-vous via /login.");
-    }
+    const responseKind = classifyInventoryResponse(response.status);
+    if (responseKind === "authentication") throw new SessionExpiredError();
     const body = await readJson(response);
     if (response.status === 202 && body.initializing) {
       onProgress(body.sync?.processedVariants || 0);
       await wait(2_000, signal);
       continue;
     }
-    if (RETRY_STATUSES.has(response.status) && attempt < 4) {
+    if (responseKind === "retryable" && attempt < 4) {
       await wait(Math.min(800 * 2 ** attempt, 5_000), signal);
       continue;
     }
@@ -112,6 +119,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const [reconciledAt, setReconciledAt] = useState<Date | null>(null);
   const [revision, setRevision] = useState(0);
   const [syncPhase, setSyncPhase] = useState<SyncPhase>("empty");
+  const [authExpired, setAuthExpired] = useState(false);
   const loadingRef = useRef(false);
   const mountedRef = useRef(false);
   const readyRef = useRef(false);
@@ -120,9 +128,32 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const errorRef = useRef<string | null>(null);
   const reconciledAtRef = useRef<string | null>(null);
   const snapshotControllerRef = useRef<AbortController | null>(null);
+  const authExpiredRef = useRef(false);
+
+  const expireSession = useCallback(() => {
+    if (authExpiredRef.current) return;
+    authExpiredRef.current = true;
+    snapshotControllerRef.current?.abort();
+    setVariants([]);
+    setProducts([]);
+    setProgress(0);
+    setRevision(0);
+    revisionRef.current = 0;
+    setSyncedAt(null);
+    setReconciledAt(null);
+    reconciledAtRef.current = null;
+    readyRef.current = false;
+    setReady(false);
+    setSyncing(false);
+    errorRef.current = null;
+    setError(null);
+    syncPhaseRef.current = "empty";
+    setSyncPhase("empty");
+    setAuthExpired(true);
+  }, []);
 
   const loadSnapshot = useCallback(async (foreground: boolean) => {
-    if (loadingRef.current) return false;
+    if (loadingRef.current || authExpiredRef.current) return false;
     const controller = new AbortController();
     snapshotControllerRef.current = controller;
     loadingRef.current = true;
@@ -170,6 +201,10 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       }
       return true;
     } catch (caught) {
+      if (caught instanceof SessionExpiredError) {
+        expireSession();
+        return false;
+      }
       if (!controller.signal.aborted && mountedRef.current) {
         const nextError =
           caught instanceof Error ? caught.message : "Erreur de synchronisation";
@@ -190,7 +225,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         if (announceLoading && mountedRef.current) setSyncing(false);
       }
     }
-  }, []);
+  }, [expireSession]);
 
   const refresh = useCallback(() => {
     void loadSnapshot(true);
@@ -215,14 +250,14 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     let consecutiveFailures = 0;
 
     const schedule = (delay: number) => {
-      if (stopped) return;
+      if (stopped || authExpiredRef.current) return;
       if (timer !== null) window.clearTimeout(timer);
       timer = window.setTimeout(() => void check(), delay);
     };
 
     const check = async () => {
-      if (stopped || checking) return;
-      if (!shouldCheckInventoryVersion(document.visibilityState, loadingRef.current)) {
+      if (stopped || checking || authExpiredRef.current) return;
+      if (!shouldCheckInventoryVersion(document.visibilityState, loadingRef.current, authExpiredRef.current)) {
         schedule(getInventoryPollDelay(consecutiveFailures, document.visibilityState));
         return;
       }
@@ -237,6 +272,10 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
           signal: controller.signal,
           },
         );
+        if (classifyInventoryResponse(response.status) === "authentication") {
+          expireSession();
+          return;
+        }
         if (!response.ok) throw new Error(`Version check failed (${response.status})`);
         const body = (await response.json()) as {
           revision?: number;
@@ -293,7 +332,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       if (timer !== null) window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [loadSnapshot]);
+  }, [authExpired, expireSession, loadSnapshot]);
 
   const stats = useMemo(() => getStats(products), [products]);
   const value = useMemo(
@@ -309,6 +348,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       reconciledAt,
       revision,
       syncPhase,
+      authExpired,
       refresh,
     }),
     [
@@ -323,6 +363,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       reconciledAt,
       revision,
       syncPhase,
+      authExpired,
       refresh,
     ],
   );
