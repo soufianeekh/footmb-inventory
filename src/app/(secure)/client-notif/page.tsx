@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BellRing, Check, Clock3, ExternalLink, LoaderCircle, MessageCircle, Plus, Search, ShieldCheck } from "lucide-react";
+import { BellRing, Check, Clock3, ExternalLink, LoaderCircle, MessageCircle, Plus, Search, ShieldCheck, X } from "lucide-react";
 import { useInventory } from "@/components/inventory-provider";
 import { useCurrentUser } from "@/components/user-context";
 import { LOCATIONS, type LocationKey } from "@/lib/inventory";
-import { PageHeading, Surface } from "@/components/ui";
+import { PageHeading, ProductImage, Surface } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -50,6 +50,8 @@ export default function ClientNotifPage() {
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [productId, setProductId] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [location, setLocation] = useState<LocationKey>(locations[0]?.key || "casa");
   const selectedLocation = locations.some((item) => item.key === location) ? location : locations[0]?.key || "casa";
   const [variantId, setVariantId] = useState("");
@@ -61,16 +63,31 @@ export default function ClientNotifPage() {
   const [revealed, setRevealed] = useState<Record<string, string>>({});
 
   const products = useMemo(() => {
-    const map = new Map<string, string>();
-    variants.forEach((variant) => map.set(variant.productId, variant.model));
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], "fr", { numeric: true }));
+    const map = new Map<string, { name: string; image: string | null }>();
+    variants.forEach((variant) => {
+      const current = map.get(variant.productId);
+      map.set(variant.productId, {
+        name: variant.model,
+        image: current?.image || variant.image || null,
+      });
+    });
+    return [...map.entries()]
+      .map(([id, product]) => ({ id, ...product }))
+      .sort((a, b) => a.name.localeCompare(b.name, "fr", { numeric: true }));
   }, [variants]);
-  const selectedProductId = products.some(([id]) => id === productId) ? productId : products[0]?.[0] || "";
+  const selectedProductId = products.some((product) => product.id === productId) ? productId : products[0]?.id || "";
+  const selectedProduct = products.find((product) => product.id === selectedProductId);
+  const filteredProducts = useMemo(() => {
+    const normalizedSearch = productSearch.trim().toLocaleLowerCase("fr");
+    return products
+      .filter((product) => !normalizedSearch || product.name.toLocaleLowerCase("fr").includes(normalizedSearch))
+      .slice(0, 50);
+  }, [products, productSearch]);
   const selectedVariants = useMemo(() => variants.filter((variant) =>
     variant.productId === selectedProductId && variant.tracked && Boolean(variant.locationIds?.[selectedLocation]),
   ).sort((a, b) => a.size.localeCompare(b.size, "fr", { numeric: true })), [variants, selectedProductId, selectedLocation]);
   const selectedVariantId = selectedVariants.some((variant) => variant.variantId === variantId) ? variantId : selectedVariants[0]?.variantId || "";
-  const productNames = useMemo(() => new Map(products), [products]);
+  const productNames = useMemo(() => new Map(products.map((product) => [product.id, product.name])), [products]);
 
   const load = useCallback(async () => {
     setLoadError("");
@@ -170,7 +187,48 @@ export default function ClientNotifPage() {
         <div className="mb-4 flex items-center gap-2"><span className="rounded-lg bg-primary p-2 text-white"><Plus size={18}/></span><div><h2 className="font-semibold">Nouvelle demande</h2><p className="text-xs text-muted-foreground">Enregistrez le produit et la boutique exacte</p></div></div>
         {!ready && <p className="mb-4 rounded-md bg-amber-50 p-3 text-xs text-amber-800">Le catalogue Shopify se charge. Vous pouvez saisir les coordonnées après la synchronisation.</p>}
         <form className="space-y-4" onSubmit={createAlert}>
-          <Field label="Produit"><select className="h-10 rounded-md border bg-white px-3 text-sm" value={selectedProductId} onChange={(event) => { setProductId(event.target.value); setVariantId(""); }} required><option value="">Choisir un produit</option>{products.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></Field>
+          <Field label="Produit">
+            <div className="relative">
+              <div className="relative">
+                <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  role="combobox"
+                  aria-label="Rechercher un produit"
+                  aria-expanded={productPickerOpen}
+                  aria-controls="client-notif-product-options"
+                  aria-autocomplete="list"
+                  autoComplete="off"
+                  value={productSearch}
+                  onFocus={() => setProductPickerOpen(true)}
+                  onChange={(event) => { setProductSearch(event.target.value); setProductPickerOpen(true); }}
+                  placeholder={selectedProduct?.name || "Rechercher un produit…"}
+                  className="pl-9 pr-10"
+                  required={!selectedProductId}
+                />
+                {productPickerOpen && <button type="button" aria-label="Fermer la liste des produits" onClick={() => { setProductPickerOpen(false); setProductSearch(""); }} className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><X size={15}/></button>}
+              </div>
+              {productPickerOpen && <div id="client-notif-product-options" role="listbox" aria-label="Produits" className="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border bg-white p-1.5 shadow-xl">
+                {filteredProducts.length ? filteredProducts.map((product) => <button
+                  key={product.id}
+                  type="button"
+                  role="option"
+                  aria-selected={product.id === selectedProductId}
+                  onClick={() => { setProductId(product.id); setVariantId(""); setProductSearch(""); setProductPickerOpen(false); }}
+                  className={`flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${product.id === selectedProductId ? "bg-orange-50/70" : ""}`}
+                >
+                  <ProductImage src={product.image} alt={product.name} />
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-[#111244]">{product.name}</span><span className="mt-0.5 block text-xs text-muted-foreground">Choisir ce produit</span></span>
+                  {product.id === selectedProductId && <Check size={16} className="shrink-0 text-emerald-600"/>}
+                </button>) : <p className="px-3 py-7 text-center text-sm text-muted-foreground">Aucun produit ne correspond à « {productSearch} ».</p>}
+                {filteredProducts.length === 50 && <p className="px-3 py-2 text-center text-[11px] text-muted-foreground">Affinez la recherche pour voir d’autres produits.</p>}
+              </div>}
+            </div>
+            {selectedProduct && <div className="mt-2 flex min-w-0 items-center gap-3 rounded-lg border bg-white p-2.5">
+              <ProductImage src={selectedProduct.image} alt={selectedProduct.name}/>
+              <div className="min-w-0"><p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Produit sélectionné</p><p className="mt-0.5 truncate text-sm font-semibold text-[#111244]">{selectedProduct.name}</p></div>
+              <button type="button" onClick={() => { setProductSearch(""); setProductPickerOpen(true); }} className="ml-auto shrink-0 rounded-md px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-muted">Changer</button>
+            </div>}
+          </Field>
           <div className="grid gap-3 sm:grid-cols-2"><Field label="Boutique"><select className="h-10 rounded-md border bg-white px-3 text-sm" value={selectedLocation} onChange={(event) => setLocation(event.target.value as LocationKey)} required>{locations.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></Field><Field label="Taille / variante"><select className="h-10 rounded-md border bg-white px-3 text-sm" value={selectedVariantId} onChange={(event) => setVariantId(event.target.value)} required><option value="">Choisir une taille</option>{selectedVariants.map((variant) => <option key={variant.variantId} value={variant.variantId}>{variant.size} · {variant.stock[selectedLocation]} disponible(s)</option>)}</select></Field></div>
           <div className="grid gap-3 sm:grid-cols-2"><Field label="Canal"><select className="h-10 rounded-md border bg-white px-3 text-sm" value={channel} onChange={(event) => setChannel(event.target.value as typeof channel)}><option value="whatsapp">WhatsApp</option><option value="phone">Téléphone</option><option value="email">Email</option></select></Field><Field label="Quantité demandée"><Input type="number" min={1} max={20} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} required/></Field></div>
           <Field label={channel === "email" ? "Adresse email" : "Numéro de téléphone"}><Input value={contact} onChange={(event) => setContact(event.target.value)} placeholder={channel === "email" ? "client@example.com" : "+212 6…"} autoComplete="off" required/></Field>
